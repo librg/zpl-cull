@@ -1,6 +1,6 @@
 {
   "name": "zpl_cull.c",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Tree culling library.",
   "main": "include/zpl_cull.h",
   "directories": {
@@ -27,5 +27,8 @@
   "bugs": {
     "url": "https://github.com/zpl-c/zpl-cull/issues"
   },
-  "homepage": "https://github.com/zpl-c/zpl-cull#readme"
+  "homepage": "https://github.com/zpl-c/zpl-cull#readme",
+  "dependencies": {
+    "zpl.c": "^2.0.2"
+  }
 }
