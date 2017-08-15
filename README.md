@@ -4,7 +4,7 @@
 Fast 2D/3D spatial tree culler. This module takes care of placing tree nodes into the culling zone and splitting branch into subtrees accordingly (based on simple set of conditions).
 User can easily query for any list of nodes in a tree and easily retrieve a list of visible nodes user can operate on.
 
-## Example
+## Usage
 
 ```c
 #define ZPL_IMPLEMENTATION
