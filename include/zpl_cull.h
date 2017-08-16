@@ -61,10 +61,7 @@ extern "C" {
     // Spatial bounding box
     //
 
-    typedef struct zplc_bounds_t {
-        f32 E[3];
-        f32 half[3];
-    } zplc_bounds_t;
+    typedef zplm_aabb3_t zplc_bounds_t;
 
     //
     // Tree culler structure
@@ -76,7 +73,7 @@ extern "C" {
     } zplc_dim_e;
 
     typedef struct zplc_node_t {
-        f32               E[3];
+        zplm_vec3_t position;
         zplc_bounds_t bounds;
 
         // NOTE(ZaKlaus): Custom data to be set by user.
@@ -125,8 +122,8 @@ extern "C" {
 
     b32 zplc__contains(isize dims, zplc_bounds_t a, f32 *point) {
         for (i32 i = 0; i < dims; ++i) {
-            if (!( a.E[i] - a.half[i] <= point[i]
-                && a.E[i] + a.half[i] >= point[i])) {
+            if (!( a.centre.e[i] - a.half_size.e[i] <= point[i]
+                && a.centre.e[i] + a.half_size.e[i] >= point[i])) {
                 return false;
             }
         }
@@ -136,7 +133,7 @@ extern "C" {
 
     b32 zplc__intersects(isize dims, zplc_bounds_t a, zplc_bounds_t b) {
         for (i32 i = 0; i < dims; ++i) {
-            if (zpl_abs(a.E[i] - b.E[i]) > (a.half[i] + b.half[i])) return false;
+            if (zpl_abs(a.centre.e[i] - b.centre.e[i]) > (a.half_size.e[i] + b.half_size.e[i])) return false;
         }
 
         return true;
@@ -148,7 +145,7 @@ extern "C" {
 
         isize nodes_count = zpl_array_count(c->nodes);
         for (i32 i = 0; i < nodes_count; ++i) {
-            b32 inside = zplc__contains(c->dimensions, bounds, c->nodes[i].E);
+            b32 inside = zplc__contains(c->dimensions, bounds, c->nodes[i].position.e);
 
             if (inside) {
                 zpl_array_append(out_nodes, c->nodes[i]);
@@ -166,7 +163,7 @@ extern "C" {
     }
 
     b32 zplc_insert(zplc_t *c, zplc_node_t node) {
-        if(!zplc__contains(c->dimensions, c->boundary, node.E)) return false;
+        if(!zplc__contains(c->dimensions, c->boundary, node.position.e)) return false;
 
         if (c->nodes == NULL) {
             zpl_array_init(c->nodes, c->allocator);
@@ -207,7 +204,7 @@ extern "C" {
     void zplc_split(zplc_t *c) {
         zplc_bounds_t hd = c->boundary;
         for (i32 i = 0; i < c->dimensions; ++i) {
-            hd.half[i] /= 2;
+            hd.half_size.e[i] /= 2;
         }
 
         i32 loops = 0;
@@ -222,12 +219,12 @@ extern "C" {
         for (i32 i = 0; i < loops; ++i) {
             zplc_t tree = {0};
             zplc_bounds_t bounds = {0};
-            p[0] = c->boundary.E[0] + hd.half[0] + (hd.half[0]/2.0)*zplc__tpl[i][0];
-            p[1] = c->boundary.E[1] + hd.half[1] + (hd.half[1]/2.0)*zplc__tpl[i][1];
-            p[2] = c->boundary.E[2] + hd.half[2] + (hd.half[2]/2.0)*zplc__tpl[i][2];
+            p[0] = c->boundary.centre.e[0] + hd.half_size.e[0] + (hd.half_size.e[0]/2.0)*zplc__tpl[i][0];
+            p[1] = c->boundary.centre.e[1] + hd.half_size.e[1] + (hd.half_size.e[1]/2.0)*zplc__tpl[i][1];
+            p[2] = c->boundary.centre.e[2] + hd.half_size.e[2] + (hd.half_size.e[2]/2.0)*zplc__tpl[i][2];
 
-            zpl_memcopy(bounds.E, p, 3*zpl_size_of(f32));
-            zpl_memcopy(bounds.half, hd.half, 3*zpl_size_of(f32));
+            zpl_memcopy(bounds.centre.e, p, 3 * sizeof(f32));
+            bounds.half_size = hd.half_size;
 
             tree.boundary   = bounds;
             tree.max_nodes  = c->max_nodes;

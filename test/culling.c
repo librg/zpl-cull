@@ -1,39 +1,41 @@
 #define ZPL_IMPLEMENTATION
 #include "zpl.h"
 
+#define ZPLM_IMPLEMENTATION
+#include "zpl_math.h"
+
 #define ZPLC_IMPLEMENTATION
 #include "zpl_cull.h"
 
 int
 main(void) {
     zplc_bounds_t b = {0};
-    f32 center[3] = {0};
-    f32 half[3] = {100};
-    zpl_memcopy(b.E, center, 3*4);
-    zpl_memcopy(b.half, half, 3*4);
+
+    b.centre = zplm_vec3(0, 0, 0);
+    b.half_size = zplm_vec3(100, 100, 100);
 
     zplc_t root = {0};
     zplc_init(&root, zpl_heap_allocator(), zplc_dim_2d_ev, b, 2);
 
     zplc_node_t e1 = {0};
-    e1.E[0] = 20;
+    e1.position.x = 20;
     zplc_insert(&root, e1);
 
     zplc_node_t e2 = {0};
-    e2.E[0] = 30;
+    e2.position.x = 30;
     zplc_insert(&root, e2);
 
     zplc_node_t e3 = {0};
-    e3.E[0] = 35;
+    e3.position.x = 35;
     zplc_insert(&root, e3);
 
     zplc_node_t e4 = {0};
-    e4.E[0] = 12;
+    e4.position.x = 12;
     zplc_insert(&root, e4);
 
     zplc_bounds_t search_bounds = {
-        .E = {0,0,0},
-        .half = {20,20,20},
+        .centre = {0,0,0},
+        .half_size = {20,20,20},
     };
 
     zpl_array_t(zplc_node_t) search_result;
