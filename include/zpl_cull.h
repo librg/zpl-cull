@@ -19,12 +19,11 @@ Usage:
 Dependencies:
     zpl.h
 
-    Make sure you properly include them!
-
 Credits:
     Dominik Madarasz (GitHub: zaklaus)
 
 Version History:
+    2.0.0 - Slight fixes and design changes
     1.0.2 - Small oversight fixed
     1.0.1 - Fixes.
     1.0.0 - Initial version
@@ -50,10 +49,6 @@ Version History:
 #ifndef ZPL_INCLUDE_ZPL_CULL_H
 #define ZPL_INCLUDE_ZPL_CULL_H
 
-#ifndef ZPL_IMPLEMENTATION
-#error You must include zpl.h !!!
-#endif
-
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -75,7 +70,6 @@ extern "C" {
 
     typedef struct zplc_node_t {
         zplm_vec3_t position;
-        zplc_bounds_t bounds;
 
         // NOTE(ZaKlaus): Custom data to be set by user.
         void *ptr;
@@ -93,7 +87,7 @@ extern "C" {
     } zplc_t;
 
     ZPL_DEF void zplc_init  (zplc_t *c, zpl_allocator_t a, isize dims, zplc_bounds_t bounds, u32 max_nodes);
-    ZPL_DEF void zplc_query (zplc_t *c, zplc_bounds_t bounds, zpl_array_t(zplc_node_t) out_nodes);
+    ZPL_DEF void zplc_query (zplc_t *c, zplc_bounds_t bounds, zpl_array_t(zplc_node_t) *out_nodes);
     ZPL_DEF b32  zplc_insert(zplc_t *c, zplc_node_t node);
     ZPL_DEF b32  zplc_remove(zplc_t *c, zplc_node_t node);
     ZPL_DEF void zplc_split (zplc_t *c);
@@ -125,7 +119,7 @@ extern "C" {
     b32 zplc__contains(isize dims, zplc_bounds_t a, f32 *point) {
         for (i32 i = 0; i < dims; ++i) {
             if (!( a.centre.e[i] - a.half_size.e[i] <= point[i]
-                && a.centre.e[i] + a.half_size.e[i] >= point[i])) {
+                   && a.centre.e[i] + a.half_size.e[i] >= point[i])) {
                 return false;
             }
         }
@@ -141,7 +135,7 @@ extern "C" {
         return true;
     }
 
-    void zplc_query(zplc_t *c, zplc_bounds_t bounds, zpl_array_t(zplc_node_t) out_nodes) {
+    void zplc_query(zplc_t *c, zplc_bounds_t bounds, zplc_node_t **out_nodes) {
         if (c->nodes == NULL) return;
         if (!zplc__intersects(c->dimensions, c->boundary, bounds)) return;
 
@@ -150,7 +144,7 @@ extern "C" {
             b32 inside = zplc__contains(c->dimensions, bounds, c->nodes[i].position.e);
 
             if (inside) {
-                zpl_array_append(out_nodes, c->nodes[i]);
+                zpl_array_append(*out_nodes, c->nodes[i]);
             }
 
         }
@@ -185,6 +179,7 @@ extern "C" {
             zplc_split(c);
         }
 
+        trees_count = zpl_array_count(c->trees);
         for (i32 i = 0; i < trees_count; ++i) {
             if (zplc_insert((c->trees+i), node)) return true;
         }
@@ -193,20 +188,20 @@ extern "C" {
     }
 
     zpl_global f32 zplc__tpl[][3] = {
-        {-1, -1, -1},
-        {+1, -1, -1},
-        {-1, +1, -1},
-        {+1, +1, -1},
-        {-1, -1, +1},
-        {+1, -1, +1},
-        {-1, +1, +1},
-        {+1, +1, +1},
+        {-1.0f, -1.0f, -1.0f},
+        {+1.0f, -1.0f, -1.0f},
+        {-1.0f, +1.0f, -1.0f},
+        {+1.0f, +1.0f, -1.0f},
+        {-1.0f, -1.0f, +1.0f},
+        {+1.0f, -1.0f, +1.0f},
+        {-1.0f, +1.0f, +1.0f},
+        {+1.0f, +1.0f, +1.0f},
     };
 
     void zplc_split(zplc_t *c) {
         zplc_bounds_t hd = c->boundary;
         for (i32 i = 0; i < c->dimensions; ++i) {
-            hd.half_size.e[i] /= 2;
+            hd.half_size.e[i] /= 2.0f;
         }
 
         i32 loops = 0;
@@ -221,10 +216,9 @@ extern "C" {
         for (i32 i = 0; i < loops; ++i) {
             zplc_t tree = {0};
             zplc_bounds_t bounds = {0};
-            p[0] = c->boundary.centre.e[0] + hd.half_size.e[0] + (hd.half_size.e[0]/2.0)*zplc__tpl[i][0];
-            p[1] = c->boundary.centre.e[1] + hd.half_size.e[1] + (hd.half_size.e[1]/2.0)*zplc__tpl[i][1];
-            p[2] = c->boundary.centre.e[2] + hd.half_size.e[2] + (hd.half_size.e[2]/2.0)*zplc__tpl[i][2];
-
+            p[0] = c->boundary.centre.e[0] + hd.half_size.e[0]*zplc__tpl[i][0];
+            p[1] = c->boundary.centre.e[1] + hd.half_size.e[1]*zplc__tpl[i][1];
+            p[2] = c->boundary.centre.e[2] + hd.half_size.e[2]*zplc__tpl[i][2];
             zpl_memcopy(bounds.centre.e, p, 3 * sizeof(f32));
             bounds.half_size = hd.half_size;
 

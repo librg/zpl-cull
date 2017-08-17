@@ -8,10 +8,12 @@ User can easily query for any list of nodes in a tree and easily retrieve a list
 
 ```c
 #define ZPL_IMPLEMENTATION
-#define ZPLM_IMPLEMENTATION
-#define ZPLC_IMPLEMENTATION
 #include "zpl.h"
+
+#define ZPLM_IMPLEMENTATION
 #include "zpl_math.h"
+
+#define ZPLC_IMPLEMENTATION
 #include "zpl_cull.h"
 
 int
@@ -22,7 +24,7 @@ main(void) {
     b.half_size = zplm_vec3(100, 100, 100);
 
     zplc_t root = {0};
-    zplc_init(&root, zpl_heap_allocator(), zplc_dim_2d_ev, b, 2);
+    zplc_init(&root, zpl_heap_allocator(), zplc_dim_2d_ev, b, 32);
 
     zplc_node_t e1 = {0};
     e1.position.x = 20;
@@ -48,10 +50,26 @@ main(void) {
     zpl_array_t(zplc_node_t) search_result;
     zpl_array_init(search_result, zpl_heap_allocator());
 
-    zplc_query(&root, search_bounds, search_result);
+    zplc_query(&root, search_bounds, &search_result);
 
     isize result = zpl_array_count(search_result);
     ZPL_ASSERT(result == 2);
+
+    zplc_free(&root);
+
+    for (isize i = 0; i < 666; ++i) {
+        zplc_node_t e = {0};
+        e.position.x = 0.0001f*i;
+        zplc_insert(&root, e);
+    }
+
+    zpl_array_t(zplc_node_t) search_result2;
+    zpl_array_init(search_result2, zpl_heap_allocator());
+
+    zplc_query(&root, search_bounds, &search_result2);
+    isize c = zpl_array_count(search_result2);
+    ZPL_ASSERT(zpl_array_count(search_result2) == 666);
+
 
     return 0;
 }
