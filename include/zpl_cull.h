@@ -245,9 +245,13 @@ extern "C" {
             c->trees = NULL;
             return;
         }
-        zpl_array_free(c->nodes);
-        c->nodes = NULL;
 
+        if (c->nodes) {
+            zpl_array_free(c->nodes);
+            c->nodes = NULL;
+        }
+
+        if (!c->trees) return;
         isize trees_count = zpl_array_count(c->trees);
         for (i32 i = 0; i < trees_count; ++i) {
             zplc_clear((c->trees+i));
