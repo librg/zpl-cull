@@ -45,6 +45,8 @@ main(void) {
 
     isize result = zpl_array_count(search_result);
     ZPL_ASSERT(result == 2);
+    
+    zplc_free(&root);
 
     return 0;
 }

@@ -25,6 +25,7 @@ Credits:
     Dominik Madarasz (GitHub: zaklaus)
 
 Version History:
+    1.0.2 - Small oversight fixed
     1.0.1 - Fixes.
     1.0.0 - Initial version
 
@@ -97,7 +98,8 @@ extern "C" {
     ZPL_DEF b32  zplc_remove(zplc_t *c, zplc_node_t node);
     ZPL_DEF void zplc_split (zplc_t *c);
     ZPL_DEF void zplc_clear (zplc_t *c);
-    ZPL_DEF void zplc_free  (zplc_t *c);
+    
+    #define zplc_free zplc_clear
 
 
 #if defined(__cplusplus)
