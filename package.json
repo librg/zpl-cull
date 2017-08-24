@@ -29,7 +29,7 @@
   },
   "homepage": "https://github.com/zpl-c/zpl-cull#readme",
   "dependencies": {
-    "zpl.c": "^2.0.2",
+    "zpl.c": "^3.0.0",
     "zpl_math.c": "^1.0.1"
   }
 }
