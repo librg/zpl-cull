@@ -23,6 +23,7 @@ Credits:
     Dominik Madarasz (GitHub: zaklaus)
 
 Version History:
+    3.0.0 - Added the ability to remove specific node, Few utilities were added.
     2.1.2 - Small fixes for tiny cpp warnings
     2.0.0 - Slight fixes and design changes
     1.0.2 - Small oversight fixed
@@ -75,6 +76,7 @@ extern "C" {
         // NOTE(ZaKlaus): Custom data to be set by user.
         void *ptr;
         u64   tag;
+        b32   unused;
     } zplc_node_t;
 
     typedef struct zplc_t {
@@ -84,13 +86,16 @@ extern "C" {
         isize                          dimensions;
         zplc_bounds_t              boundary;
         zpl_array_t(zplc_node_t)   nodes;
+        zpl_buffer_t(usize)        free_nodes;
+        usize                      free_node_count;
         zpl_array_t(struct zplc_t) trees;
     } zplc_t;
 
     ZPL_DEF void zplc_init  (zplc_t *c, zpl_allocator_t a, isize dims, zplc_bounds_t bounds, u32 max_nodes);
     ZPL_DEF void zplc_query (zplc_t *c, zplc_bounds_t bounds, zpl_array_t(zplc_node_t) *out_nodes);
-    ZPL_DEF b32  zplc_insert(zplc_t *c, zplc_node_t node);
-    ZPL_DEF b32  zplc_remove(zplc_t *c, zplc_node_t node);
+    ZPL_DEF zplc_node_t *zplc_insert(zplc_t *c, zplc_node_t node);
+    ZPL_DEF b32  zplc_remove(zplc_t *c, u64 tag);
+    ZPL_DEF zplc_t *zplc_find_branch(zplc_t *c, u64 tag);
     ZPL_DEF void zplc_split (zplc_t *c);
     ZPL_DEF void zplc_clear (zplc_t *c);
     
@@ -142,6 +147,8 @@ extern "C" {
 
         isize nodes_count = zpl_array_count(c->nodes);
         for (i32 i = 0; i < nodes_count; ++i) {
+            if (c->nodes[i].unused) continue;
+
             b32 inside = zplc__contains(c->dimensions, bounds, c->nodes[i].position.e);
 
             if (inside) {
@@ -159,8 +166,46 @@ extern "C" {
         }
     }
 
-    b32 zplc_insert(zplc_t *c, zplc_node_t node) {
-        if(!zplc__contains(c->dimensions, c->boundary, node.position.e)) return false;
+    b32 zplc_remove(zplc_t *c, u64 tag) {
+        for (i32 i = 0; i < zpl_array_count(c->nodes); ++i) {
+            if (c->nodes[i].tag == tag) {
+                if (c->free_nodes == NULL) {
+                    zpl_buffer_init(c->free_nodes, c->allocator, c->max_nodes);
+                }
+
+                c->free_nodes[c->free_node_count++] = i;
+                c->nodes[i].unused = true;
+                return true;
+            }
+        }
+
+        if(c->trees == NULL) return false;
+        isize trees_count = zpl_array_count(c->trees);
+        if (trees_count == 0) return false;
+
+        for (i32 i = 0; i < trees_count; ++i) {
+            return zplc_remove(&c->trees[i], tag);
+        }
+    }
+
+    zplc_t *zplc_find_branch(zplc_t *c, u64 tag) {
+        for (i32 i = 0; i < zpl_array_count(c->nodes); ++i) {
+            if (c->nodes[i].tag == tag) {
+                return c;
+            }
+        }
+
+        if(c->trees == NULL) return NULL;
+        isize trees_count = zpl_array_count(c->trees);
+        if (trees_count == 0) return NULL;
+
+        for (i32 i = 0; i < trees_count; ++i) {
+            return zplc_find_branch(&c->trees[i], tag);
+        }
+    }
+
+    zplc_node_t *zplc_insert(zplc_t *c, zplc_node_t node) {
+        if(!zplc__contains(c->dimensions, c->boundary, node.position.e)) return NULL;
 
         if (c->nodes == NULL) {
             zpl_array_init(c->nodes, c->allocator);
@@ -168,7 +213,13 @@ extern "C" {
 
         if((usize)zpl_array_count(c->nodes) < c->max_nodes) {
             zpl_array_append(c->nodes, node);
-            return true;
+            return c;
+        }
+
+        if (c->free_nodes && c->free_node_count > 0) {
+            node.unused = false;
+            c->nodes[c->free_nodes[--c->free_node_count]] = node;
+            return c;
         }
 
         if (c->trees == NULL) {
@@ -182,10 +233,11 @@ extern "C" {
 
         trees_count = zpl_array_count(c->trees);
         for (i32 i = 0; i < trees_count; ++i) {
-            if (zplc_insert((c->trees+i), node)) return true;
+            zplc_t *tree = zplc_insert((c->trees+i), node);
+            return tree;
         }
 
-        return false;
+        return NULL;
     }
 
     zpl_global f32 zplc__tpl[][3] = {
