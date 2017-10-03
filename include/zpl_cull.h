@@ -23,6 +23,7 @@ Credits:
     Dominik Madarasz (GitHub: zaklaus)
 
 Version History:
+    3.0.2 - Small fix for find_branch.
     3.0.1 - A lot of bug fixes.
     3.0.0 - Added the ability to remove specific node, Few utilities were added.
     2.1.2 - Small fixes for tiny cpp warnings
@@ -196,8 +197,11 @@ extern "C" {
         if (trees_count == 0) return NULL;
 
         for (i32 i = 0; i < trees_count; ++i) {
-            return zplc_find_branch(&c->trees[i], tag);
+            zplc_t *tree = zplc_find_branch(&c->trees[i], tag);
+            if (tree) return tree;
         }
+
+        return false;
     }
 
     zplc_node_t *zplc_insert(zplc_t *c, zplc_node_t node) {
