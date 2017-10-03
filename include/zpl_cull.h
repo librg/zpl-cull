@@ -23,6 +23,7 @@ Credits:
     Dominik Madarasz (GitHub: zaklaus)
 
 Version History:
+    3.0.1 - A lot of bug fixes.
     3.0.0 - Added the ability to remove specific node, Few utilities were added.
     2.1.2 - Small fixes for tiny cpp warnings
     2.0.0 - Slight fixes and design changes
@@ -86,8 +87,7 @@ extern "C" {
         isize                          dimensions;
         zplc_bounds_t              boundary;
         zpl_array_t(zplc_node_t)   nodes;
-        zpl_buffer_t(usize)        free_nodes;
-        usize                      free_node_count;
+        zpl_array_t(usize)         free_nodes;
         zpl_array_t(struct zplc_t) trees;
     } zplc_t;
 
@@ -167,25 +167,21 @@ extern "C" {
     }
 
     b32 zplc_remove(zplc_t *c, u64 tag) {
+        if (c->nodes == NULL) return false;
         for (i32 i = 0; i < zpl_array_count(c->nodes); ++i) {
-            if (c->nodes[i].tag == tag) {
+            zplc_node_t *node = &c->nodes[i];
+            if (node->tag == tag) {
+                if (node->unused) return false;
                 if (c->free_nodes == NULL) {
-                    zpl_buffer_init(c->free_nodes, c->allocator, c->max_nodes);
+                    zpl_array_init_reserve(c->free_nodes, c->allocator, c->max_nodes);
                 }
-
-                c->free_nodes[c->free_node_count++] = i;
-                c->nodes[i].unused = true;
+                zpl_array_append(c->free_nodes, i);
+                node->unused = true;
                 return true;
             }
         }
 
-        if(c->trees == NULL) return false;
-        isize trees_count = zpl_array_count(c->trees);
-        if (trees_count == 0) return false;
-
-        for (i32 i = 0; i < trees_count; ++i) {
-            return zplc_remove(&c->trees[i], tag);
-        }
+        return false;
     }
 
     zplc_t *zplc_find_branch(zplc_t *c, u64 tag) {
@@ -216,9 +212,10 @@ extern "C" {
             return c;
         }
 
-        if (c->free_nodes && c->free_node_count > 0) {
+        if (c->free_nodes && zpl_array_count(c->free_nodes) > 0) {
             node.unused = false;
-            c->nodes[c->free_nodes[--c->free_node_count]] = node;
+            c->nodes[c->free_nodes[zpl_array_count(c->free_nodes)-1]] = node;
+            zpl_array_pop(c->free_nodes);
             return c;
         }
 
@@ -234,7 +231,7 @@ extern "C" {
         trees_count = zpl_array_count(c->trees);
         for (i32 i = 0; i < trees_count; ++i) {
             zplc_t *tree = zplc_insert((c->trees+i), node);
-            return tree;
+            if (tree) return tree;
         }
 
         return NULL;
@@ -305,7 +302,9 @@ extern "C" {
         }
 
         zpl_array_free(c->trees);
+        if (c->free_nodes) zpl_array_free(c->free_nodes);
         c->trees = NULL;
+        c->free_nodes = NULL;
     }
 
 #if defined(__cplusplus)

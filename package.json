@@ -1,6 +1,6 @@
 {
   "name": "zpl_cull.c",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Tree culling library.",
   "main": "include/zpl_cull.h",
   "directories": {
