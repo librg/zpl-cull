@@ -23,7 +23,7 @@ Credits:
     Dominik Madarasz (GitHub: zaklaus)
 
 Version History:
-    3.0.2 - Small fix for find_branch.
+    3.1.0 - Added min_bounds checks + fixes
     3.0.1 - A lot of bug fixes.
     3.0.0 - Added the ability to remove specific node, Few utilities were added.
     2.1.2 - Small fixes for tiny cpp warnings
@@ -82,24 +82,26 @@ extern "C" {
     } zplc_node_t;
 
     typedef struct zplc_t {
-        zpl_allocator_t                allocator;
+        zpl_allocator_t            allocator;
 
-        u32                            max_nodes;
-        isize                          dimensions;
+        u32                        max_nodes;
+        isize                      dimensions;
         zplc_bounds_t              boundary;
+        zplm_vec3_t                min_bounds;
+        b32                        use_min_bounds;
         zpl_array_t(zplc_node_t)   nodes;
         zpl_array_t(usize)         free_nodes;
         zpl_array_t(struct zplc_t) trees;
     } zplc_t;
 
-    ZPL_DEF void zplc_init  (zplc_t *c, zpl_allocator_t a, isize dims, zplc_bounds_t bounds, u32 max_nodes);
-    ZPL_DEF void zplc_query (zplc_t *c, zplc_bounds_t bounds, zpl_array_t(zplc_node_t) *out_nodes);
-    ZPL_DEF zplc_node_t *zplc_insert(zplc_t *c, zplc_node_t node);
-    ZPL_DEF b32  zplc_remove(zplc_t *c, u64 tag);
-    ZPL_DEF zplc_t *zplc_find_branch(zplc_t *c, u64 tag);
-    ZPL_DEF void zplc_split (zplc_t *c);
-    ZPL_DEF void zplc_clear (zplc_t *c);
-    
+    ZPL_DEF void         zplc_init       (zplc_t *c, zpl_allocator_t a, isize dims, zplc_bounds_t bounds, zplm_vec3_t min_bounds, u32 max_nodes);
+    ZPL_DEF void         zplc_query      (zplc_t *c, zplc_bounds_t bounds, zpl_array_t(zplc_node_t) *out_nodes);
+    ZPL_DEF zplc_node_t *zplc_insert     (zplc_t *c, zplc_node_t node);
+    ZPL_DEF b32          zplc_remove     (zplc_t *c, u64 tag);
+    ZPL_DEF zplc_t      *zplc_find_branch(zplc_t *c, u64 tag);
+    ZPL_DEF void         zplc_split      (zplc_t *c);
+    ZPL_DEF void         zplc_clear      (zplc_t *c);
+
     #define zplc_free zplc_clear
 
 
@@ -114,13 +116,16 @@ extern "C" {
 extern "C" {
 #endif
 
-    void zplc_init(zplc_t *c, zpl_allocator_t a, isize dims, zplc_bounds_t bounds, u32 max_nodes) {
+    void zplc_init(zplc_t *c, zpl_allocator_t a, isize dims, zplc_bounds_t bounds, zplm_vec3_t min_bounds, u32 max_nodes) {
         zplc_t c_ = {0};
-        *c = c_;
-        c->allocator = a;
-        c->boundary  = bounds;
-        c->max_nodes = max_nodes;
-        c->dimensions= dims;
+        *c            = c_;
+        c->allocator  = a;
+        c->boundary   = bounds;
+        c->min_bounds = min_bounds;
+        c->use_min_bounds = zplm_vec3_mag(min_bounds) > 0.0f;
+        c->max_nodes  = max_nodes;
+        c->dimensions = dims;
+
     }
 
     b32 zplc__contains(isize dims, zplc_bounds_t a, f32 *point) {
@@ -197,11 +202,16 @@ extern "C" {
         if (trees_count == 0) return NULL;
 
         for (i32 i = 0; i < trees_count; ++i) {
-            zplc_t *tree = zplc_find_branch(&c->trees[i], tag);
-            if (tree) return tree;
+            zplc_t *branch = zplc_find_branch(&c->trees[i], tag);
+            if (branch) return branch;
         }
 
-        return false;
+        return NULL;
+    }
+
+    b32 zplc__bounds_small_enough(zplc_bounds_t a, zplm_vec3_t b) {
+        //TODO(zaklaus): Is this the best way we can determine bounds for k-d ?
+        return a.half_size.x <= b.x && a.half_size.y <= b.y && a.half_size.z <= b.z;
     }
 
     zplc_node_t *zplc_insert(zplc_t *c, zplc_node_t node) {
@@ -212,6 +222,7 @@ extern "C" {
         }
 
         if((usize)zpl_array_count(c->nodes) < c->max_nodes) {
+            insert:
             zpl_array_append(c->nodes, node);
             return c;
         }
@@ -221,6 +232,10 @@ extern "C" {
             c->nodes[c->free_nodes[zpl_array_count(c->free_nodes)-1]] = node;
             zpl_array_pop(c->free_nodes);
             return c;
+        }
+
+        if (c->use_min_bounds && zplc__bounds_small_enough(c->boundary, c->min_bounds)) {
+            goto insert;
         }
 
         if (c->trees == NULL) {
@@ -277,6 +292,8 @@ extern "C" {
             bounds.half_size = hd.half_size;
 
             tree.boundary   = bounds;
+            tree.min_bounds = c->min_bounds;
+            tree.use_min_bounds = c->use_min_bounds;
             tree.max_nodes  = c->max_nodes;
             tree.dimensions = c->dimensions;
             tree.allocator  = c->allocator;
