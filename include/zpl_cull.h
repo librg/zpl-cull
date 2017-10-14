@@ -23,6 +23,7 @@ Credits:
     Dominik Madarasz (GitHub: zaklaus)
 
 Version History:
+    3.1.1 - Fixed zplc_insert signature
     3.1.0 - Added min_bounds checks + fixes
     3.0.1 - A lot of bug fixes.
     3.0.0 - Added the ability to remove specific node, Few utilities were added.
@@ -94,13 +95,13 @@ extern "C" {
         zpl_array_t(struct zplc_t) trees;
     } zplc_t;
 
-    ZPL_DEF void         zplc_init       (zplc_t *c, zpl_allocator_t a, isize dims, zplc_bounds_t bounds, zplm_vec3_t min_bounds, u32 max_nodes);
-    ZPL_DEF void         zplc_query      (zplc_t *c, zplc_bounds_t bounds, zpl_array_t(zplc_node_t) *out_nodes);
-    ZPL_DEF zplc_node_t *zplc_insert     (zplc_t *c, zplc_node_t node);
-    ZPL_DEF b32          zplc_remove     (zplc_t *c, u64 tag);
-    ZPL_DEF zplc_t      *zplc_find_branch(zplc_t *c, u64 tag);
-    ZPL_DEF void         zplc_split      (zplc_t *c);
-    ZPL_DEF void         zplc_clear      (zplc_t *c);
+    ZPL_DEF void     zplc_init       (zplc_t *c, zpl_allocator_t a, isize dims, zplc_bounds_t bounds, zplm_vec3_t min_bounds, u32 max_nodes);
+    ZPL_DEF void     zplc_query      (zplc_t *c, zplc_bounds_t bounds, zpl_array_t(zplc_node_t) *out_nodes);
+    ZPL_DEF zplc_t  *zplc_insert     (zplc_t *c, zplc_node_t node);
+    ZPL_DEF b32      zplc_remove     (zplc_t *c, u64 tag);
+    ZPL_DEF zplc_t  *zplc_find_branch(zplc_t *c, u64 tag);
+    ZPL_DEF void     zplc_split      (zplc_t *c);
+    ZPL_DEF void     zplc_clear      (zplc_t *c);
 
     #define zplc_free zplc_clear
 
@@ -214,7 +215,7 @@ extern "C" {
         return a.half_size.x <= b.x && a.half_size.y <= b.y && a.half_size.z <= b.z;
     }
 
-    zplc_node_t *zplc_insert(zplc_t *c, zplc_node_t node) {
+    zplc_t *zplc_insert(zplc_t *c, zplc_node_t node) {
         if(!zplc__contains(c->dimensions, c->boundary, node.position.e)) return NULL;
 
         if (c->nodes == NULL) {
