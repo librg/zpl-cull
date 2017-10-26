@@ -23,6 +23,7 @@ Credits:
     Dominik Madarasz (GitHub: zaklaus)
 
 Version History:
+    3.1.2 - Fixed zplc_insert bug with invalid branched nodes
     3.1.1 - Fixed zplc_insert signature
     3.1.0 - Added min_bounds checks + fixes
     3.0.1 - A lot of bug fixes.
@@ -163,7 +164,7 @@ extern "C" {
             }
 
         }
-        if(c->trees == NULL) return;
+        if (c->trees == NULL) return;
 
         isize trees_count = zpl_array_count(c->trees);
         if (trees_count == 0) return;
@@ -198,7 +199,7 @@ extern "C" {
             }
         }
 
-        if(c->trees == NULL) return NULL;
+        if (c->trees == NULL) return NULL;
         isize trees_count = zpl_array_count(c->trees);
         if (trees_count == 0) return NULL;
 
@@ -216,22 +217,22 @@ extern "C" {
     }
 
     zplc_t *zplc_insert(zplc_t *c, zplc_node_t node) {
-        if(!zplc__contains(c->dimensions, c->boundary, node.position.e)) return NULL;
+        if (!zplc__contains(c->dimensions, c->boundary, node.position.e)) return NULL;
 
         if (c->nodes == NULL) {
             zpl_array_init(c->nodes, c->allocator);
-        }
-
-        if((usize)zpl_array_count(c->nodes) < c->max_nodes) {
-            insert:
-            zpl_array_append(c->nodes, node);
-            return c;
         }
 
         if (c->free_nodes && zpl_array_count(c->free_nodes) > 0) {
             node.unused = false;
             c->nodes[c->free_nodes[zpl_array_count(c->free_nodes)-1]] = node;
             zpl_array_pop(c->free_nodes);
+            return c;
+        }
+
+        if ((usize)zpl_array_count(c->nodes) < c->max_nodes) {
+            insert:
+            zpl_array_append(c->nodes, node);
             return c;
         }
 
