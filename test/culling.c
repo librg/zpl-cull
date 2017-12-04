@@ -15,7 +15,7 @@ main(void) {
     b.half_size = zplm_vec3(100, 100, 100);
 
     zplc_t root = {0};
-    zplc_init(&root, zpl_heap_allocator(), zplc_dim_2d_ev, b, 32);
+    zplc_init(&root, zpl_heap_allocator(), zplc_dim_2d_ev, b, zplm_vec3(0, 0, 0), 32);
 
     zplc_node_t e1 = {0};
     e1.position.x = 20;
